@@ -21,8 +21,8 @@ header { background:black; padding:15px; text-align:center; }
 .close { position:absolute; top:20px; right:20px; font-size:30px; cursor:pointer; }
 input { width:100%; padding:8px; margin:5px 0; }
 </style>
-
 </head>
+
 <body>
 
 <header>
@@ -43,7 +43,6 @@ input { width:100%; padding:8px; margin:5px 0; }
 </div>
 
 <input type="text" id="search" placeholder="Buscar película..." onkeyup="searchMovies()">
-
 <div class="movies" id="movies"></div>
 
 </div>
@@ -62,8 +61,8 @@ input { width:100%; padding:8px; margin:5px 0; }
 </a>
 </div>
 
-<!-- 🔥 FIREBASE -->
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
 
@@ -79,23 +78,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-window.db = db;
-window.collection = collection;
-window.addDoc = addDoc;
-window.getDocs = getDocs;
-</script>
-
-<script>
-
 const PASSWORD = "1064123479";
 let isAdmin = false;
 let movies = [];
-
 let currentVideo = "";
 let currentDownload = "";
 
-// 🔐 LOGIN
-function login() {
+/* LOGIN */
+window.login = function() {
   const pass = prompt("Contraseña:");
   if (pass === PASSWORD) {
     document.getElementById("adminPanel").style.display = "block";
@@ -105,105 +95,97 @@ function login() {
   } else {
     alert("Contraseña incorrecta");
   }
-}
+};
 
-// 🎬 RENDER
+/* RENDER */
 function renderMovies(list = movies) {
   const container = document.getElementById("movies");
   container.innerHTML = "";
 
-  list.forEach((m, i) => {
+  list.forEach((m) => {
     container.innerHTML += `
       <div class="movie">
-        ${isAdmin ? `<button class="delete-btn" onclick="deleteMovie(${i})">X</button>` : ""}
         <img src="${m.image}" onclick="openModal('${m.video}', '${m.download || ''}')">
         <p>${m.title}</p>
       </div>
     `;
   });
-
-  if (isAdmin) {
-    document.querySelectorAll(".delete-btn").forEach(btn => {
-      btn.style.display = "block";
-    });
-  }
 }
 
-// 🗑️ BORRAR (solo visual)
-function deleteMovie(index) {
-  alert("Borrado desactivado por seguridad 🔐");
-}
-
-// 🎬 MODAL
-function openModal(video, download) {
+/* MODAL */
+window.openModal = function(video, download) {
   currentVideo = video;
   currentDownload = download;
   document.getElementById("modal").style.display = "flex";
-}
+};
 
-function confirmPlay() {
+window.confirmPlay = function() {
   document.getElementById("modal").style.display = "none";
   playMovie(currentVideo, currentDownload);
-}
+};
 
-// ➕ AGREGAR
-async function addMovie() {
-  const title = document.getElementById("title").value;
-  const file = document.getElementById("image").files[0];
-  const video = document.getElementById("video").value;
-  const download = document.getElementById("download").value;
+/* AGREGAR */
+window.addMovie = async function() {
+  try {
+    const title = document.getElementById("title").value;
+    const file = document.getElementById("image").files[0];
+    const video = document.getElementById("video").value;
+    const download = document.getElementById("download").value;
 
-  if (!title || !file || !video) {
-    alert("Completa todo");
-    return;
+    if (!title || !file || !video) {
+      alert("Completa todo");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = async function(e) {
+      const image = e.target.result;
+
+      await addDoc(collection(db, "movies"), {
+        title,
+        image,
+        video,
+        download
+      });
+
+      alert("Película subida 🔥");
+      loadMovies();
+    };
+
+    reader.readAsDataURL(file);
+
+  } catch (error) {
+    console.error(error);
+    alert("Error al subir");
   }
+};
 
-  const reader = new FileReader();
-
-  reader.onload = async function(e) {
-    const image = e.target.result;
-
-    await addDoc(collection(db, "movies"), {
-      title,
-      image,
-      video,
-      download
-    });
-
-    alert("Película subida 🔥");
-    loadMovies();
-  };
-
-  reader.readAsDataURL(file);
-}
-
-// 📥 CARGAR DESDE FIREBASE
+/* CARGAR */
 async function loadMovies() {
-  const querySnapshot = await getDocs(collection(db, "movies"));
-
-  movies = [];
-
-  querySnapshot.forEach(doc => {
-    movies.push(doc.data());
-  });
-
-  renderMovies();
+  try {
+    const querySnapshot = await getDocs(collection(db, "movies"));
+    movies = [];
+    querySnapshot.forEach(doc => movies.push(doc.data()));
+    renderMovies();
+  } catch (error) {
+    console.error(error);
+  }
 }
 
-// 🔍 BUSCAR
-function searchMovies() {
+/* BUSCAR */
+window.searchMovies = function() {
   const value = document.getElementById("search").value.toLowerCase();
   const filtered = movies.filter(m => m.title.toLowerCase().includes(value));
   renderMovies(filtered);
-}
+};
 
-// ▶️ PLAYER
+/* PLAYER */
 function playMovie(video, download) {
   document.getElementById("player").style.display = "flex";
   document.getElementById("videoPlayer").src = video;
 
   const dl = document.getElementById("downloadLink");
-
   if (download) {
     dl.href = download;
     dl.style.display = "block";
@@ -212,12 +194,12 @@ function playMovie(video, download) {
   }
 }
 
-function closePlayer() {
+window.closePlayer = function() {
   document.getElementById("player").style.display = "none";
   document.getElementById("videoPlayer").src = "";
-}
+};
 
-// 🔥 CARGA AUTOMÁTICA
+/* INICIO */
 loadMovies();
 
 </script>
