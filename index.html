@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mi Plataforma</title>
+
+<style>
+body { margin:0; background:#141414; color:white; font-family:Arial; }
+header { background:black; padding:15px; text-align:center; }
+.container { padding:15px; }
+.admin { display:none; background:#222; padding:10px; margin-bottom:15px; border-radius:8px; }
+.movies { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }
+.movie { position: relative; background:#1a1a1a; padding:5px; border-radius:8px; }
+.movie img { width:100%; border-radius:6px; cursor:pointer; }
+.delete-btn { position:absolute; top:5px; right:5px; background:red; border:none; color:white; padding:3px 6px; cursor:pointer; display:none; }
+.modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:none; justify-content:center; align-items:center; flex-direction:column; }
+.modal button { background:red; color:white; padding:15px; font-size:18px; border:none; cursor:pointer; border-radius:8px; }
+.player { position:fixed; top:0; left:0; width:100%; height:100%; background:black; display:none; flex-direction:column; justify-content:center; align-items:center; }
+.player iframe { width:95%; height:60%; }
+.download-btn { margin-top:10px; background:#0f9d58; color:white; border:none; padding:10px; cursor:pointer; border-radius:5px; }
+.close { position:absolute; top:20px; right:20px; font-size:30px; cursor:pointer; }
+input { width:100%; padding:8px; margin:5px 0; }
+</style>
+
+</head>
+<body>
+
+<header>
+🎬 MI PLATAFORMA
+<br>
+<button onclick="login()">Modo Admin</button>
+</header>
+
+<div class="container">
+
+<div class="admin" id="adminPanel">
+<h3>Panel Admin</h3>
+<input type="text" id="title" placeholder="Título">
+<input type="file" id="image" accept="image/*">
+<input type="text" id="video" placeholder="Link video (embed)">
+<input type="text" id="download" placeholder="Link descarga">
+<button onclick="addMovie()">Agregar</button>
+</div>
+
+<input type="text" id="search" placeholder="Buscar película..." onkeyup="searchMovies()">
+
+<div class="movies" id="movies"></div>
+
+</div>
+
+<div class="modal" id="modal">
+  <h2>🎬 Ver película</h2>
+  <p>Puede abrir publicidad</p>
+  <button onclick="confirmPlay()">▶ Reproducir</button>
+</div>
+
+<div class="player" id="player">
+<span class="close" onclick="closePlayer()">✖</span>
+<iframe id="videoPlayer" src="" allowfullscreen></iframe>
+<a id="downloadLink" href="#" target="_blank">
+  <button class="download-btn">⬇️ Descargar</button>
+</a>
+</div>
+
+<!-- 🔥 FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDVDToFKnLEtZwyAGIpa3THKI6mzLwvW30",
+  authDomain: "movieflix-fe5b1.firebaseapp.com",
+  projectId: "movieflix-fe5b1",
+  storageBucket: "movieflix-fe5b1.firebasestorage.app",
+  messagingSenderId: "677516185364",
+  appId: "1:677516185364:web:daa43dc943d09db52c7c01"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window.db = db;
+window.collection = collection;
+window.addDoc = addDoc;
+window.getDocs = getDocs;
+</script>
+
+<script>
+
+const PASSWORD = "1064123479";
+let isAdmin = false;
+let movies = [];
+
+let currentVideo = "";
+let currentDownload = "";
+
+function login() {
+  const pass = prompt("Contraseña:");
+  if (pass === PASSWORD) {
+    document.getElementById("adminPanel").style.display = "block";
+    isAdmin = true;
+    alert("Modo admin activado");
+    loadMovies();
+  } else {
+    alert("Contraseña incorrecta");
+  }
+}
+
+function renderMovies(list = movies) {
+  const container = document.getElementById("movies");
+  container.innerHTML = "";
+
+  list.forEach((m, i) => {
+    container.innerHTML += `
+      <div class="movie">
+        ${isAdmin ? `<button class="delete-btn">X</button>` : ""}
+        <img src="${m.image}" onclick="openModal('${m.video}', '${m.download || ''}')">
+        <p>${m.title}</p>
+      </div>
+    `;
+  });
+}
+
+function openModal(video, download) {
+  currentVideo = video;
+  currentDownload = download;
+  document.getElementById("modal").style.display = "flex";
+}
+
+function confirmPlay() {
+  document.getElementById("modal").style.display = "none";
+  playMovie(currentVideo, currentDownload);
+}
+
+async function addMovie() {
+  const title = document.getElementById("title").value;
+  const file = document.getElementById("image").files[0];
+  const video = document.getElementById("video").value;
+  const download = document.getElementById("download").value;
+
+  if (!title || !file || !video) {
+    alert("Completa todo");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = async function(e) {
+    const image = e.target.result;
+
+    await addDoc(collection(db, "movies"), {
+      title,
+      image,
+      video,
+      download
+    });
+
+    alert("Película subida 🔥");
+    loadMovies();
+  };
+
+  reader.readAsDataURL(file);
+}
+
+async function loadMovies() {
+  const querySnapshot = await getDocs(collection(db, "movies"));
+
+  movies = [];
+
+  querySnapshot.forEach(doc => {
+    movies.push(doc.data());
+  });
+
+  renderMovies();
+}
+
+function searchMovies() {
+  const value = document.getElementById("search").value.toLowerCase();
+  const filtered = movies.filter(m => m.title.toLowerCase().includes(value));
+  renderMovies(filtered);
+}
+
+function playMovie(video, download) {
+  document.getElementById("player").style.display = "flex";
+  document.getElementById("videoPlayer").src = video;
+
+  const dl = document.getElementById("downloadLink");
+
+  if (download) {
+    dl.href = download;
+    dl.style.display = "block";
+  } else {
+    dl.style.display = "none";
+  }
+}
+
+function closePlayer() {
+  document.getElementById("player").style.display = "none";
+  document.getElementById("videoPlayer").src = "";
+}
+
+loadMovies();
+
+</script>
+
+</body>
+</html>
