@@ -94,18 +94,20 @@ let movies = [];
 let currentVideo = "";
 let currentDownload = "";
 
+// 🔐 LOGIN
 function login() {
   const pass = prompt("Contraseña:");
   if (pass === PASSWORD) {
     document.getElementById("adminPanel").style.display = "block";
     isAdmin = true;
     alert("Modo admin activado");
-    loadMovies();
+    renderMovies();
   } else {
     alert("Contraseña incorrecta");
   }
 }
 
+// 🎬 RENDER
 function renderMovies(list = movies) {
   const container = document.getElementById("movies");
   container.innerHTML = "";
@@ -113,14 +115,26 @@ function renderMovies(list = movies) {
   list.forEach((m, i) => {
     container.innerHTML += `
       <div class="movie">
-        ${isAdmin ? `<button class="delete-btn">X</button>` : ""}
+        ${isAdmin ? `<button class="delete-btn" onclick="deleteMovie(${i})">X</button>` : ""}
         <img src="${m.image}" onclick="openModal('${m.video}', '${m.download || ''}')">
         <p>${m.title}</p>
       </div>
     `;
   });
+
+  if (isAdmin) {
+    document.querySelectorAll(".delete-btn").forEach(btn => {
+      btn.style.display = "block";
+    });
+  }
 }
 
+// 🗑️ BORRAR (solo visual)
+function deleteMovie(index) {
+  alert("Borrado desactivado por seguridad 🔐");
+}
+
+// 🎬 MODAL
 function openModal(video, download) {
   currentVideo = video;
   currentDownload = download;
@@ -132,6 +146,7 @@ function confirmPlay() {
   playMovie(currentVideo, currentDownload);
 }
 
+// ➕ AGREGAR
 async function addMovie() {
   const title = document.getElementById("title").value;
   const file = document.getElementById("image").files[0];
@@ -162,6 +177,7 @@ async function addMovie() {
   reader.readAsDataURL(file);
 }
 
+// 📥 CARGAR DESDE FIREBASE
 async function loadMovies() {
   const querySnapshot = await getDocs(collection(db, "movies"));
 
@@ -174,12 +190,14 @@ async function loadMovies() {
   renderMovies();
 }
 
+// 🔍 BUSCAR
 function searchMovies() {
   const value = document.getElementById("search").value.toLowerCase();
   const filtered = movies.filter(m => m.title.toLowerCase().includes(value));
   renderMovies(filtered);
 }
 
+// ▶️ PLAYER
 function playMovie(video, download) {
   document.getElementById("player").style.display = "flex";
   document.getElementById("videoPlayer").src = video;
@@ -199,6 +217,7 @@ function closePlayer() {
   document.getElementById("videoPlayer").src = "";
 }
 
+// 🔥 CARGA AUTOMÁTICA
 loadMovies();
 
 </script>
